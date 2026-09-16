@@ -45,22 +45,24 @@ This guide explains how to run the backend (FastAPI) and the frontend (Next.js) 
 
 ### Environment Variables
 
-Create a `.env` file in `backend/` based on `backend/env.example`:
+Copy the examples and fill in real values:
 
 ```
-BEATOVEN_API_KEY=your_key
-MUBERT_CUSTOMER_ID=your_customer_id
-MUBERT_ACCESS_TOKEN=your_access_token
-```
+# backend/.env  ← from backend/env.example
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+SUPABASE_BUCKET=audio
+BEATOVEN_API_KEY=...
 
-Frontend can be configured via environment variables as well. The key one during local dev is the backend URL used by the chat tool route:
-
-```
-# frontend/.env.local
+# frontend/.env.local  ← from frontend/env.example
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_API_BASE=http://localhost:8000
 BACKEND_URL=http://localhost:8000
 ```
 
-If you skip this, it defaults to `http://localhost:8000`.
+If Supabase auth/storage is broken in production (deleted project, missing keys), follow [docs/SUPABASE_RESTORE.md](docs/SUPABASE_RESTORE.md) and run `supabase/migrations/001_tracks_and_storage.sql` on a new project.
 
 ---
 
