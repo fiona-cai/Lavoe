@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { authFetch } from "@/lib/authFetch";
+import { BACKEND_URL } from "@/lib/backendUrl";
+import type { CatalogTrack } from "@/lib/beatovenTracks";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -280,6 +282,7 @@ export interface AiSidebarProps {
   onLoop?: (blockId: string, times: number) => void;
   onAgentBusyChange?: (busy: boolean) => void;
   onNewTrack?: (track: Track) => void;
+  generatedCatalogTracks?: CatalogTrack[];
 }
 
 export default function AiSidebar({
@@ -297,6 +300,7 @@ export default function AiSidebar({
   onLoop,
   onAgentBusyChange,
   onNewTrack,
+  generatedCatalogTracks = [],
 }: AiSidebarProps) {
   const [mode, setMode] = useState<"beat" | "agent">("beat");
   const [activeTab, setActiveTab] = useState<"chat" | "tracks">("chat");
@@ -306,8 +310,6 @@ export default function AiSidebar({
   const [aiModel, setAiModel] = useState<
     "gpt-4o-mini" | "gemini-2.5-flash" | "command-A-03"
   >("command-A-03");
-  const BACKEND_URL =
-    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
   const placeholder =
     mode === "beat" ? "Describe a beat..." : "Ask the agent...";
 
@@ -346,6 +348,18 @@ export default function AiSidebar({
       fetchTracks();
     }
   }, [tracksRefreshTrigger]);
+
+  useEffect(() => {
+    if (!generatedCatalogTracks.length) return;
+    setTracks((prev) => {
+      const ids = new Set(prev.map((track) => track.track_id));
+      const incoming = generatedCatalogTracks.filter(
+        (track) => !ids.has(track.track_id)
+      );
+      return incoming.length ? [...incoming, ...prev] : prev;
+    });
+    setLoadingTracks(false);
+  }, [generatedCatalogTracks]);
 
   // Handle track deletion
   const handleTrackDelete = (trackId: string) => {
@@ -459,14 +473,16 @@ export default function AiSidebar({
     if (onAgentBusyChange) onAgentBusyChange(isLoading);
   }, [isLoading, onAgentBusyChange]);
 
-  // When beat generation finishes, automatically switch to catalog tab
+  // When beat generation finishes successfully, automatically switch to catalog tab
   const prevIsGenerating = useRef<boolean>(false);
   useEffect(() => {
     if (mode === "beat" && prevIsGenerating.current && !isGeneratingTrack) {
-      setActiveTab("tracks");
+      if (generationStatus?.toLowerCase().includes("completed")) {
+        setActiveTab("tracks");
+      }
     }
     prevIsGenerating.current = !!isGeneratingTrack;
-  }, [isGeneratingTrack, mode]);
+  }, [isGeneratingTrack, mode, generationStatus]);
   // Handle speed adjustment operation
   const handleSpeedAdjust = async (
     blockId: string,
@@ -1075,6 +1091,9 @@ export default function AiSidebar({
           </div>
 
           <div className="p-4">
+            {generationStatus && !isGeneratingTrack && (
+              <p className="text-xs text-gray-400 px-1 pb-2">{generationStatus}</p>
+            )}
             <form onSubmit={handleFormSubmit}>
               <div className="bg-[#2F2F2F] rounded-lg p-3 space-y-2 border border-[#484848]">
                 <Input

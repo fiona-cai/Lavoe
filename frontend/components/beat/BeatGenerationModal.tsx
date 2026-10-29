@@ -5,8 +5,7 @@ import { X, Wand2, Loader2, ArrowUp } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { authFetch } from "@/lib/authFetch";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+import { BACKEND_URL } from "@/lib/backendUrl";
 
 export interface GeneratedBeat {
   main: {

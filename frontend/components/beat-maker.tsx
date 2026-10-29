@@ -10,6 +10,7 @@ import { BeatGenerationModal, GeneratedBeat } from "@/components/beat/BeatGenera
 import { MusicBlock, Track } from "@/components/beat/types";
 import { authFetch } from "@/lib/authFetch";
 import * as audioStorage from "@/lib/audioLocalStorage";
+import { BACKEND_URL } from "@/lib/backendUrl";
 
 const initialTracks: Track[] = [];
 
@@ -19,9 +20,6 @@ const TIMELINE_WIDTH = 800;
 const TIMELINE_MEASURES = 64; // measures instead of seconds
 const PIXELS_PER_MEASURE = TIMELINE_WIDTH / TIMELINE_MEASURES;
 const START_MEASURE = 1; // Transport starts at measure 1
-
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export default function BeatMaker() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -36,6 +34,7 @@ export default function BeatMaker() {
     trackIndex: number;
   } | null>(null);
   const [tracksRefreshTrigger, setTracksRefreshTrigger] = useState(0);
+  const [generatedCatalogTracks, setGeneratedCatalogTracks] = useState<any[]>([]);
   const [isGeneratingTrack, setIsGeneratingTrack] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<string>("");
   const [agentBusy, setAgentBusy] = useState(false);
@@ -513,7 +512,7 @@ export default function BeatMaker() {
   const downloadTrack = async (trackId: string): Promise<Blob> => {
     console.log(`📥 Downloading track: ${trackId}`);
     const response = await authFetch(
-      `${BACKEND_URL}/tracks/${trackId}/download`
+      `${BACKEND_URL}/tracks/${encodeURIComponent(trackId)}/download`
     );
 
     if (!response.ok) {
@@ -560,7 +559,14 @@ export default function BeatMaker() {
           response.status,
           text
         );
-        throw new Error("Failed to start track generation");
+        let detail = "Failed to start track generation";
+        try {
+          const parsed = JSON.parse(text);
+          detail = parsed.error || parsed.detail || detail;
+        } catch {
+          if (text) detail = text;
+        }
+        throw new Error(detail);
       }
 
       const result = await response.json();
@@ -575,7 +581,14 @@ export default function BeatMaker() {
     } catch (error) {
       console.error("Error generating track:", error);
       setIsGeneratingTrack(false);
-      setGenerationStatus("");
+      setGenerationStatus(
+        error instanceof Error
+          ? error.message
+          : "Failed to start track generation. Please try again."
+      );
+      setTimeout(() => {
+        setGenerationStatus("");
+      }, 5000);
     }
   };
 
@@ -610,6 +623,9 @@ export default function BeatMaker() {
         if (result.status === "composed") {
           // Track generation completed - the tracks are now stored in our system
           console.log("Track generation completed:", result);
+          if (Array.isArray(result.catalog)) {
+            setGeneratedCatalogTracks(result.catalog);
+          }
           setGenerationStatus(
             "Track generation completed! Check the Tracks tab."
           );
@@ -1086,7 +1102,7 @@ export default function BeatMaker() {
     try {
       // Download the track from the backend
       const response = await authFetch(
-        `${BACKEND_URL}/tracks/${trackId}/download`
+        `${BACKEND_URL}/tracks/${encodeURIComponent(trackId)}/download`
       );
       if (!response.ok) {
         throw new Error("Failed to download track");
@@ -1483,6 +1499,7 @@ export default function BeatMaker() {
         isGeneratingTrack={isGeneratingTrack}
         generationStatus={generationStatus}
         onAddTrackToEditor={handleAddTrackToEditor}
+        generatedCatalogTracks={generatedCatalogTracks}
         blocks={blocks}
         onBlockMove={(blockId: string, newTime: number) => {
           setBlocks((prevBlocks) =>

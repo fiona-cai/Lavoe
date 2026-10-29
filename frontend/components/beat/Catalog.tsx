@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { Waveform } from "./Waveform";
 import { authFetch } from "@/lib/authFetch";
+import { BACKEND_URL } from "@/lib/backendUrl";
 
 interface Track {
   track_id: string;
@@ -30,8 +31,6 @@ interface Track {
   processing_type?: string;
   channels?: number;
 }
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 function TrackWaveform({
   trackId,
@@ -49,7 +48,7 @@ function TrackWaveform({
       try {
         setIsLoading(true);
         const response = await authFetch(
-          `${BACKEND_URL}/tracks/${trackId}/download`
+          `${BACKEND_URL}/tracks/${encodeURIComponent(trackId)}/download`
         );
         if (!response.ok)
           throw new Error("Failed to request signed URL for waveform");
@@ -157,7 +156,7 @@ export default function Catalog({
 
     try {
       const response = await authFetch(
-        `${BACKEND_URL}/tracks/${trackId}/download`
+        `${BACKEND_URL}/tracks/${encodeURIComponent(trackId)}/download`
       );
       if (!response.ok) {
         throw new Error("Failed to download track");
@@ -203,7 +202,7 @@ export default function Catalog({
   const handleDownloadTrack = async (trackId: string, filename: string) => {
     try {
       const response = await authFetch(
-        `${BACKEND_URL}/tracks/${trackId}/download`
+        `${BACKEND_URL}/tracks/${encodeURIComponent(trackId)}/download`
       );
       if (!response.ok) {
         throw new Error("Failed to download track");
@@ -229,7 +228,7 @@ export default function Catalog({
 
   const handleDeleteTrack = async (trackId: string) => {
     try {
-      const response = await authFetch(`${BACKEND_URL}/tracks/${trackId}`, {
+      const response = await authFetch(`${BACKEND_URL}/tracks/${encodeURIComponent(trackId)}`, {
         method: "DELETE",
       });
       if (!response.ok) {
