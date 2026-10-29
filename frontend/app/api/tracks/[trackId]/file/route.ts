@@ -1,5 +1,8 @@
+import dns from "node:dns";
 import { NextResponse } from "next/server";
 import { decodeTrackRef } from "@/lib/beatovenTracks";
+
+dns.setDefaultResultOrder("ipv4first");
 
 export const maxDuration = 60;
 
