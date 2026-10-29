@@ -1,0 +1,29 @@
+frontend/components/auth/OnboardingFlow.tsx
+  s_5cc031f405fef0::t_d59cbc4eac1391 291
+  s_5cc031f405fef0::t_06eeb5288cad43 57
+frontend/lib/supabaseClient.ts
+  s_5cc031f405fef0::t_c225da76ea9bf9 3,5-11
+frontend/components/auth/AuthGate.tsx
+  s_5cc031f405fef0::t_946407e71e4220 6-7,10,13-16,20
+frontend/lib/authFetch.ts
+  s_5cc031f405fef0::t_5bc0e2a35afa1f 5-16,29-32
+  s_5cc031f405fef0::t_cb067771150d88 22-25
+backend/auth_helpers.py
+  s_5cc031f405fef0::t_b58cedf6cbba13 2,6-10,14-18,20-32,41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e6d6234a9096410241d067f8255a564fd3d03fbe",
+  "prompts": {},
+  "sessions": {
+    "s_5cc031f405fef0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "42eb54c7-4241-4bb0-bbc7-003fca2baa5f",
+        "model": "grok-4.6"
+      },
+      "human_author": "Fiona Cai <69484076+fiona-cai@users.noreply.github.com>"
+    }
+  }
+}
