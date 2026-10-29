@@ -1,0 +1,34 @@
+frontend/lib/premadeTracks.ts
+  s_5cc031f405fef0::t_b960ffe8d47244 1-65
+frontend/app/api/tracks/route.ts
+  s_5cc031f405fef0::t_06d145fab28589 2,5-7
+frontend/scripts/generate-premade-tracks.mjs
+  s_5cc031f405fef0::t_23927c62005be5 1-202
+frontend/components/beat/AiSidebar.tsx
+  s_5cc031f405fef0::t_df70ff6bc10cba 345-355
+  s_5cc031f405fef0::t_3a78cb4d367df0 17
+  s_5cc031f405fef0::t_24b370e73e6078 333,340,342
+  s_5cc031f405fef0::t_c9558e44d9aa5c 334-339,341
+frontend/components/beat/Catalog.tsx
+  s_5cc031f405fef0::t_a3901a1606e787 339-350
+frontend/app/api/tracks/[trackId]/download/route.ts
+  s_5cc031f405fef0::t_abe2d8feb60578 3,10-17
+frontend/app/api/tracks/[trackId]/route.ts
+  s_5cc031f405fef0::t_1ec189f69c1221 2,4-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34be4186556054c69f082a6098577bd2e3607596",
+  "prompts": {},
+  "sessions": {
+    "s_5cc031f405fef0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "42eb54c7-4241-4bb0-bbc7-003fca2baa5f",
+        "model": "grok-4.6"
+      },
+      "human_author": "Fiona Cai <69484076+fiona-cai@users.noreply.github.com>"
+    }
+  }
+}
