@@ -1,0 +1,35 @@
+frontend/lib/clientAudioFx.ts
+  s_5cc031f405fef0::t_2ff1e5bc097248 1-130
+frontend/app/api/agent-chat/route.ts
+  s_5cc031f405fef0::t_7753a0366d2ec2 139,141
+  s_5cc031f405fef0::t_e5e417bbc70326 212-213
+  s_5cc031f405fef0::t_298e45f7fff7bf 4-10,13,91-95,99,101-102,104-137,148-152,173,206-209,214
+  s_5cc031f405fef0::t_35b62da0ae2d99 96-98,100,103
+frontend/lib/localMusicAgent.ts
+  s_5cc031f405fef0::t_a223b93d41550c 1-268
+frontend/components/beat-maker.tsx
+  s_5cc031f405fef0::t_290eba3c5be64c 1216-1223,1225-1233,1235-1246,1249-1268,1270-1273,1275-1305,1307-1331,1333-1336,1338-1339,1342-1343,1345-1360,1362-1373,1375,1377-1379
+  s_5cc031f405fef0::t_aa8384bb07950e 1576,1578
+  s_5cc031f405fef0::t_f1ec36225da926 14
+frontend/components/beat/AiSidebar.tsx
+  s_5cc031f405fef0::t_228f3d64eecd7c 1133-1135
+  s_5cc031f405fef0::t_517cb4bb3020b7 282-290
+  s_5cc031f405fef0::t_3d7dd68500c2d2 578-606,609
+  s_5cc031f405fef0::t_1f5e11ff6c6bf9 309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4128c6566a02c10e1a52279aedbdcebf5995b416",
+  "prompts": {},
+  "sessions": {
+    "s_5cc031f405fef0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "42eb54c7-4241-4bb0-bbc7-003fca2baa5f",
+        "model": "grok-4.6"
+      },
+      "human_author": "Fiona Cai <69484076+fiona-cai@users.noreply.github.com>"
+    }
+  }
+}
