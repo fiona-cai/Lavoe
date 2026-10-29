@@ -336,16 +336,18 @@ export default function Catalog({
               <div className="space-y-3">
                 {tracks.map((track) => (
                   <Card key={track.track_id} className="bg-card relative">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-red-400 absolute top-2 right-2 z-10"
-                      onClick={() => handleDeleteTrack(track.track_id)}
-                      title="Remove from catalog"
-                      aria-label="Remove from catalog"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    {!track.track_id.startsWith("premade_") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-red-400 absolute top-2 right-2 z-10"
+                        onClick={() => handleDeleteTrack(track.track_id)}
+                        title="Remove from catalog"
+                        aria-label="Remove from catalog"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0 overflow-hidden">

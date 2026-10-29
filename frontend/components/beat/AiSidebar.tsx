@@ -14,6 +14,7 @@ import { useState, useEffect, useRef } from "react";
 import { authFetch } from "@/lib/authFetch";
 import { BACKEND_URL } from "@/lib/backendUrl";
 import type { CatalogTrack } from "@/lib/beatovenTracks";
+import { PREMADE_TRACKS } from "@/lib/premadeTracks";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -329,9 +330,29 @@ export default function AiSidebar({
         throw new Error(`Failed to fetch tracks: ${response.statusText}`);
       }
       const tracksData = await response.json();
-      setTracks(tracksData);
+      setTracks((prev) => {
+        const fromApi = Array.isArray(tracksData) ? tracksData : [];
+        const apiIds = new Set(fromApi.map((track: Track) => track.track_id));
+        const localOnly = prev.filter(
+          (track) =>
+            !apiIds.has(track.track_id) &&
+            !track.track_id.startsWith("premade_")
+        );
+        return [...localOnly, ...fromApi];
+      });
     } catch (error) {
       console.error("Error fetching tracks:", error);
+      setTracks((prev) => {
+        const localOnly = prev.filter(
+          (track) => !track.track_id.startsWith("premade_")
+        );
+        return [
+          ...localOnly,
+          ...PREMADE_TRACKS.map(
+            ({ url: _url, premade: _premade, ...track }) => track
+          ),
+        ];
+      });
     } finally {
       setLoadingTracks(false);
     }
