@@ -279,6 +279,15 @@ export interface AiSidebarProps {
   blocks?: MusicBlock[];
   onBlockMove?: (blockId: string, newTime: number) => void;
   onAddChopsToEditor?: (chops: any[], originalTrackName: string) => void;
+  onChopAudio?: (
+    trackId: string,
+    options: {
+      defaultLength?: number;
+      minDuration?: number;
+      nClusters?: number;
+      maxChops?: number;
+    }
+  ) => Promise<{ chop_summaries?: any[]; metadata?: any }>;
   onSpeedAdjust?: (blockId: string, speedFactor: number) => void;
   onLoop?: (blockId: string, times: number) => void;
   onAgentBusyChange?: (busy: boolean) => void;
@@ -297,6 +306,7 @@ export default function AiSidebar({
   blocks = [],
   onBlockMove,
   onAddChopsToEditor,
+  onChopAudio,
   onSpeedAdjust,
   onLoop,
   onAgentBusyChange,
@@ -565,30 +575,38 @@ export default function AiSidebar({
     try {
       console.log(`🍞 Starting chop operation for track ${trackId}`);
 
-      // Call the backend chop endpoint
-      const response = await authFetch(`${BACKEND_URL}/process/chop-audio`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          track_id: trackId,
-          default_length: defaultLength,
-          min_duration: minDuration,
-          n_clusters: nClusters,
-          max_chops: maxChops,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Chop request failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      const result = onChopAudio
+        ? await onChopAudio(trackId, {
+            defaultLength,
+            minDuration,
+            nClusters,
+            maxChops,
+          })
+        : await (async () => {
+            const response = await authFetch(
+              `${BACKEND_URL}/process/chop-audio`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  track_id: trackId,
+                  default_length: defaultLength,
+                  min_duration: minDuration,
+                  n_clusters: nClusters,
+                  max_chops: maxChops,
+                }),
+              }
+            );
+            if (!response.ok) {
+              throw new Error(`Chop request failed: ${response.statusText}`);
+            }
+            return response.json();
+          })();
       console.log("🍞 Chop result:", result);
 
-      // Add chops to the editor if callback is available
-      if (onAddChopsToEditor && result.chop_summaries) {
+      if (onAddChopsToEditor && result.chop_summaries && !onChopAudio) {
         onAddChopsToEditor(result.chop_summaries, `Track ${trackId} chops`);
       }
 
@@ -1112,6 +1130,9 @@ export default function AiSidebar({
           </div>
 
           <div className="p-4">
+            {mode === "agent" && error && (
+              <p className="text-xs text-red-400 px-1 pb-2">{error.message}</p>
+            )}
             {generationStatus && !isGeneratingTrack && (
               <p className="text-xs text-gray-400 px-1 pb-2">{generationStatus}</p>
             )}

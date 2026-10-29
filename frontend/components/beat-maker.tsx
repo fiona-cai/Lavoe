@@ -11,6 +11,7 @@ import { MusicBlock, Track } from "@/components/beat/types";
 import { authFetch } from "@/lib/authFetch";
 import * as audioStorage from "@/lib/audioLocalStorage";
 import { BACKEND_URL } from "@/lib/backendUrl";
+import { changeSpeedBlob, chopBlob } from "@/lib/clientAudioFx";
 
 const initialTracks: Track[] = [];
 
@@ -1212,108 +1213,170 @@ export default function BeatMaker() {
     );
   };
 
+  const getSourceAudio = (block: MusicBlock): Blob | File | null => {
+    if (block.audioFile) return block.audioFile;
+    if (block.audioBlob) return block.audioBlob;
+    const track =
+      (typeof block.track === "number" ? tracks[block.track] : undefined) ||
+      tracks.find((item) => item.id === block.trackId);
+    return track?.audioFile || track?.audioBlob || null;
+  };
+
   const handleSpeedAdjust = async (blockId: string, speedFactor: number) => {
-    console.log(
-      `🏃 Speed adjusting block ${blockId} with factor ${speedFactor}`
-    );
-
-    // Use functional update to get current blocks state
-    let targetBlock: any = null;
-    setBlocks((prevBlocks) => {
-      targetBlock = prevBlocks.find((b) => b.id === blockId);
-      console.log("Found block:", targetBlock, "in blocks:", prevBlocks);
-      return prevBlocks; // No change, just getting the current state
-    });
-
-    if (!targetBlock || !targetBlock.trackId) {
-      console.error(`Block ${blockId} not found or has no trackId`);
-      return;
+    const targetBlock = blocks.find((block) => block.id === blockId);
+    if (!targetBlock) {
+      throw new Error(`Block ${blockId} not found`);
+    }
+    const source = getSourceAudio(targetBlock);
+    if (!source) {
+      throw new Error(`No audio found for ${targetBlock.name}`);
     }
 
-    try {
-      // Call the backend speed adjustment endpoint
-      const response = await authFetch(`${BACKEND_URL}/process/speed`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    const audioBlob = await changeSpeedBlob(source, speedFactor);
+    const audioFile = new File(
+      [audioBlob],
+      `${targetBlock.name}-${speedFactor}x.wav`,
+      { type: "audio/wav" }
+    );
+    const processedId = `speed_${Date.now()}`;
+    const audioElement = new Audio(URL.createObjectURL(audioBlob));
+    audioElement.preload = "auto";
+    trackAudioRefs.current.set(processedId, audioElement);
+    if (tracks[targetBlock.track]) {
+      trackAudioRefs.current.set(tracks[targetBlock.track].id, audioElement);
+    }
+
+    await new Promise<void>((resolve) => {
+      audioElement.addEventListener(
+        "loadedmetadata",
+        () => {
+          const newDurationInMeasures = (audioElement.duration / 60) * bpm;
+          setBlocks((prevBlocks) =>
+            prevBlocks.map((block) =>
+              block.id === blockId
+                ? {
+                    ...block,
+                    trackId: processedId,
+                    audioFile,
+                    audioBlob,
+                    duration: Math.max(1, newDurationInMeasures),
+                    name: `${block.name} (${speedFactor}x)`,
+                  }
+                : block
+            )
+          );
+          resolve();
         },
-        body: JSON.stringify({
-          track_id: targetBlock.trackId,
-          speed_factor: speedFactor,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Speed adjustment failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log("🏃 Speed adjustment result:", result);
-
-      // Download the new track
-      const trackResponse = await authFetch(
-        `${BACKEND_URL}/tracks/${result.track_id}/download`
+        { once: true }
       );
-      if (!trackResponse.ok) {
-        throw new Error(
-          `Failed to download processed track: ${trackResponse.statusText}`
+    });
+  };
+
+  const handleClientChop = async (
+    trackId: string,
+    options: {
+      defaultLength?: number;
+      minDuration?: number;
+      nClusters?: number;
+      maxChops?: number;
+    } = {}
+  ) => {
+    const targetBlock =
+      blocks.find((block) => block.trackId === trackId || block.id === trackId) ||
+      blocks[0];
+    if (!targetBlock) {
+      throw new Error("No clip on the timeline to chop");
+    }
+    const source = getSourceAudio(targetBlock);
+    if (!source) {
+      throw new Error(`No audio found for ${targetBlock.name}`);
+    }
+    const chops = await chopBlob(
+      source,
+      `${targetBlock.name}.wav`,
+      options.maxChops ?? 6,
+      options.minDuration ?? 0.2
+    );
+    await addChopsToEditor(chops, targetBlock.name);
+    return {
+      chop_summaries: chops,
+      metadata: { source_track_id: trackId },
+    };
+  };
+
+  const addChopsToEditor = async (chops: any[], originalTrackName: string) => {
+    const trackColors = [
+      "bg-blue-600",
+      "bg-cyan-500",
+      "bg-violet-600",
+      "bg-pink-500",
+      "bg-emerald-500",
+      "bg-orange-500",
+      "bg-red-500",
+      "bg-yellow-500",
+      "bg-indigo-500",
+      "bg-purple-500",
+    ];
+    const newTracks: Track[] = [];
+    const newBlocks: MusicBlock[] = [];
+    let currentTime = START_MEASURE;
+
+    for (let index = 0; index < chops.length; index++) {
+      const chop = chops[index];
+      const chopTrackId = `chop-track-${Date.now()}-${index}`;
+      const blockId = `chop-block-${Date.now()}-${index}`;
+      let audioBlob: Blob | null = chop.blob || null;
+      if (!audioBlob && chop.track_id) {
+        const response = await authFetch(
+          `${BACKEND_URL}/tracks/${chop.track_id}/download`
         );
-      }
-      const { url: signedUrl2 } = await trackResponse.json();
-      const blobResp2 = await fetch(signedUrl2);
-      const audioBlob = await blobResp2.blob();
-      const audioFile = new File(
-        [audioBlob],
-        result.metadata.filename || "speed_adjusted.wav",
-        { type: "audio/wav" }
-      );
-
-      // Create audio element for playback
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audioElement = new Audio(audioUrl);
-      audioElement.preload = "auto";
-
-      // Clean up old audio element if it exists
-      const originalTrack = tracks[targetBlock.track];
-      if (originalTrack) {
-        const oldAudioElement = trackAudioRefs.current.get(originalTrack.id);
-        if (oldAudioElement && oldAudioElement.src.startsWith("blob:")) {
-          URL.revokeObjectURL(oldAudioElement.src);
+        if (response.ok) {
+          const { url: signedUrl } = await response.json();
+          audioBlob = await (await fetch(signedUrl)).blob();
         }
       }
+      if (!audioBlob) continue;
 
-      // Store the audio element with the new track ID (from the processed audio)
-      // This way the playback system can find it using block.trackId
-      trackAudioRefs.current.set(result.track_id, audioElement);
-      console.log(
-        `🔄 Stored speed-adjusted audio element with ID ${result.track_id}`
+      const audioFile = new File(
+        [audioBlob],
+        chop.filename || `chop-${index + 1}.wav`,
+        { type: audioBlob.type || "audio/wav" }
       );
-
-      // Update the block with the new track ID and adjust duration
-      audioElement.addEventListener("loadedmetadata", () => {
-        const newDurationInMeasures = (audioElement.duration / 60) * bpm;
-
-        setBlocks((prevBlocks) =>
-          prevBlocks.map((b) =>
-            b.id === blockId
-              ? {
-                  ...b,
-                  trackId: result.track_id,
-                  audioFile: audioFile,
-                  audioBlob: audioBlob,
-                  duration: Math.max(1, newDurationInMeasures),
-                  name: `${b.name} (${speedFactor}x)`,
-                }
-              : b
-          )
-        );
+      const newTrack: Track = {
+        id: chopTrackId,
+        name: `${originalTrackName} ${index + 1}`,
+        color: trackColors[index % trackColors.length],
+        muted: false,
+        volume: 75,
+        audioFile,
+      };
+      const audioElement = new Audio(URL.createObjectURL(audioBlob));
+      audioElement.loop = false;
+      audioElement.preload = "metadata";
+      trackAudioRefs.current.set(chopTrackId, audioElement);
+      trackAudioRefs.current.set(chop.track_id || chopTrackId, audioElement);
+      const durationInMeasures = Math.max(
+        1,
+        (chop.duration_seconds / 60) * bpm
+      );
+      newTracks.push(newTrack);
+      newBlocks.push({
+        id: blockId,
+        name: `Chop ${index + 1}`,
+        type: "melody",
+        color: trackColors[index % trackColors.length],
+        startTime: currentTime,
+        duration: durationInMeasures,
+        track: tracks.length + newTracks.length - 1,
+        trackId: chop.track_id || chopTrackId,
+        audioBlob,
+        audioFile,
       });
-
-      console.log(`✅ Successfully adjusted speed for block ${blockId}`);
-    } catch (error) {
-      console.error("Speed adjustment error:", error);
-      throw error;
+      currentTime += durationInMeasures;
     }
+
+    setTracks((prevTracks) => [...prevTracks, ...newTracks]);
+    setBlocks((prevBlocks) => [...prevBlocks, ...newBlocks]);
   };
 
   const handleLoop = (blockId: string, times: number) => {
@@ -1510,121 +1573,9 @@ export default function BeatMaker() {
         }}
         onSpeedAdjust={handleSpeedAdjust}
         onLoop={handleLoop}
-        // Receive agent busy status from AiSidebar
+        onChopAudio={handleClientChop}
         onAgentBusyChange={(busy: boolean) => setAgentBusy(busy)}
-        onAddChopsToEditor={async (chops: any[], originalTrackName: string) => {
-          // Create tracks and blocks for each chop
-          const trackColors = [
-            "bg-blue-600",
-            "bg-cyan-500",
-            "bg-violet-600",
-            "bg-pink-500",
-            "bg-emerald-500",
-            "bg-orange-500",
-            "bg-red-500",
-            "bg-yellow-500",
-            "bg-indigo-500",
-            "bg-purple-500",
-          ];
-
-          const newTracks: Track[] = [];
-          const newBlocks: MusicBlock[] = [];
-          let currentTime = START_MEASURE; // Start placing chops sequentially
-
-          console.log("🍞 Creating audio elements for", chops.length, "chops");
-
-          // Process chops sequentially to avoid overwhelming the backend
-          for (let index = 0; index < chops.length; index++) {
-            const chop = chops[index];
-            const chopTrackId = `chop-track-${Date.now()}-${index}`;
-            const blockId = `chop-block-${Date.now()}-${index}`;
-
-            try {
-              // Download the chop audio file from backend
-              console.log(
-                `🎵 Downloading chop ${index + 1} audio (ID: ${chop.track_id})`
-              );
-              const response = await authFetch(
-                `${BACKEND_URL}/tracks/${chop.track_id}/download`
-              );
-              if (response.ok) {
-                const { url: signedUrl } = await response.json();
-                const blobResp = await fetch(signedUrl);
-                const audioBlob = await blobResp.blob();
-                const audioFile = new File([audioBlob], chop.filename, {
-                  type: audioBlob.type,
-                });
-
-                // Create track for this chop
-                const newTrack: Track = {
-                  id: chopTrackId,
-                  name: `${originalTrackName} ${index + 1}`,
-                  color: trackColors[index % trackColors.length],
-                  muted: false,
-                  volume: 75,
-                  audioFile: audioFile, // Store the actual audio file for playback
-                };
-
-                // Create audio element for timeline playback
-                const audioElement = new Audio(URL.createObjectURL(audioBlob));
-                audioElement.loop = false;
-                audioElement.preload = "metadata";
-                // Store with both chopTrackId (for track reference) and chop.track_id (for block reference)
-                trackAudioRefs.current.set(chopTrackId, audioElement);
-                trackAudioRefs.current.set(chop.track_id, audioElement);
-
-                console.log(
-                  `✅ Created audio element for chop ${
-                    index + 1
-                  } (track: ${chopTrackId})`
-                );
-
-                // Convert chop duration to measures (assuming 160 BPM, 4 beats per measure)
-                const durationInMeasures = Math.max(
-                  1,
-                  (chop.duration_seconds / 60) * (160 / 4)
-                );
-
-                // Create block for this chop
-                const newBlock: MusicBlock = {
-                  id: blockId,
-                  name: `Chop ${index + 1}`,
-                  type: "melody",
-                  color: trackColors[index % trackColors.length],
-                  startTime: currentTime,
-                  duration: durationInMeasures,
-                  track: tracks.length + newTracks.length, // Track index
-                  trackId: chop.track_id, // Use the actual chop track ID from backend
-                  audioBlob: audioBlob, // Include audio blob for waveform display
-                };
-
-                newTracks.push(newTrack);
-                newBlocks.push(newBlock);
-
-                // Place next chop after this one
-                currentTime += durationInMeasures;
-              } else {
-                console.error(
-                  `❌ Failed to download chop ${index + 1} audio:`,
-                  response.statusText
-                );
-              }
-            } catch (error) {
-              console.error(`❌ Error processing chop ${index + 1}:`, error);
-            }
-          }
-
-          // Add new tracks and blocks to the editor
-          setTracks((prevTracks) => [...prevTracks, ...newTracks]);
-          setBlocks((prevBlocks) => [...prevBlocks, ...newBlocks]);
-
-          console.log(
-            `🍞 Added ${newTracks.length} chop tracks and ${newBlocks.length} chop blocks to editor`
-          );
-          console.log(
-            `🎵 Audio refs map now has ${trackAudioRefs.current.size} elements`
-          );
-        }}
+        onAddChopsToEditor={addChopsToEditor}
       />
 
       {/* Beat Generation Modal */}

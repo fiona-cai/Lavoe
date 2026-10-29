@@ -1,11 +1,17 @@
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { cohere } from "@ai-sdk/cohere";
-import { streamText, tool, convertToModelMessages, UIMessage } from "ai";
+import {
+  streamText,
+  tool,
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+} from "ai";
 import { z } from "zod";
 import { NextRequest } from "next/server";
+import { planLocalAgent } from "@/lib/localMusicAgent";
 
-// Tool for moving blocks in the music editor (client-side only)
 const moveBlock = tool({
   description:
     "Move a music block to a new start time in the timeline. Useful for rearranging the composition.",
@@ -16,10 +22,8 @@ const moveBlock = tool({
       .min(0)
       .describe("The new start time position in measures (0-based)"),
   }),
-  // No execute function - this is handled client-side
 });
 
-// Tool for chopping audio tracks (client-side only)
 const chopAudio = tool({
   description:
     "Chop an audio track into segments based on onset detection. Creates multiple new blocks from the original track. Very useful for creating drum loops or breaking down complex audio. Automatically picks representative chops from each cluster.",
@@ -52,10 +56,8 @@ const chopAudio = tool({
         "Maximum number of chops to return, picks best representatives from each cluster (default: 6)"
       ),
   }),
-  // No execute function - this is handled client-side
 });
 
-// Tool for adjusting audio speed (client-side only)
 const adjustSpeed = tool({
   description:
     "Adjust the speed of an audio block. Makes the audio faster or slower while maintaining pitch. Creates a new track with the adjusted speed and updates the block in place.",
@@ -71,10 +73,8 @@ const adjustSpeed = tool({
         "Speed multiplication factor (1.0 = normal, 2.0 = 2x faster, 0.5 = 2x slower)"
       ),
   }),
-  // No execute function - this is handled client-side
 });
 
-// Tool for looping/duplicating blocks (client-side only)
 const loop = tool({
   description:
     "Loop/duplicate a music block multiple times, placing each copy right after the previous one on the timeline. Useful for creating repetitive patterns or extending musical phrases.",
@@ -86,23 +86,70 @@ const loop = tool({
       .max(10)
       .describe("Number of times to loop the block (1-10)"),
   }),
-  // No execute function - this is handled client-side
 });
 
-export async function POST(req: NextRequest) {
-  console.log("POST request received");
-  try {
-    const body = await req.json();
-    console.log("Request body:", JSON.stringify(body, null, 2));
+const tools = { moveBlock, chopAudio, adjustSpeed, loop };
 
+function resolveModel(model: string) {
+  switch (model) {
+    case "gemini-2.5-flash":
+      return process.env.GOOGLE_GENERATIVE_AI_API_KEY
+        ? google("gemini-2.5-flash")
+        : null;
+    case "command-A-03":
+      return process.env.COHERE_API_KEY ? cohere("command-a-03-2025") : null;
+    case "gpt-4o-mini":
+    default:
+      return process.env.OPENAI_API_KEY ? openai("gpt-4o-mini") : null;
+  }
+}
+
+function localAgentResponse(messages: any[], blocks: any[]) {
+  const plan = planLocalAgent(messages, blocks || []);
+  const stream = createUIMessageStream({
+    execute({ writer }) {
+      const textId = crypto.randomUUID();
+      writer.write({ type: "start" });
+      writer.write({ type: "start-step" });
+      writer.write({ type: "text-start", id: textId });
+      writer.write({ type: "text-delta", id: textId, delta: plan.text });
+      writer.write({ type: "text-end", id: textId });
+      for (const call of plan.tools) {
+        const toolCallId = `tool_${crypto.randomUUID()}`;
+        writer.write({
+          type: "tool-input-start",
+          toolCallId,
+          toolName: call.name,
+        });
+        writer.write({
+          type: "tool-input-available",
+          toolCallId,
+          toolName: call.name,
+          input: call.input,
+        });
+      }
+      writer.write({ type: "finish-step" });
+      writer.write({ type: "finish" });
+    },
+  });
+  return createUIMessageStreamResponse({ stream });
+}
+
+export async function POST(req: NextRequest) {
+  let body: any = {};
+  try {
+    body = await req.json();
     const { messages, blocks, model = "gpt-4o-mini" } = body;
 
     if (!messages || !Array.isArray(messages)) {
-      console.error("Invalid messages:", messages);
       return new Response("Invalid messages format", { status: 400 });
     }
 
-    // Include current blocks state in the system prompt so the AI knows what's available
+    const selectedModel = resolveModel(model);
+    if (!selectedModel) {
+      return localAgentResponse(messages, blocks);
+    }
+
     const blocksContext =
       blocks && blocks.length > 0
         ? `
@@ -120,30 +167,10 @@ ${blocks
 `
         : "No blocks currently in the timeline.";
 
-    // Select the appropriate model provider based on the requested model
-    let selectedModel;
-    switch (model) {
-      case "gemini-2.5-flash":
-        selectedModel = google("gemini-2.5-flash");
-        break;
-      case "command-A-03":
-        selectedModel = cohere("command-a-03-2025");
-        break;
-      case "gpt-4o-mini":
-      default:
-        selectedModel = openai("gpt-4o-mini");
-        break;
-    }
-
     const result = await streamText({
       model: selectedModel,
       messages: convertToModelMessages(messages),
-      tools: {
-        moveBlock,
-        chopAudio,
-        adjustSpeed,
-        loop,
-      },
+      tools,
       system: `You are Lavoe Agent, an AI assistant specialized in editing and arranging music compositions. You can help users rearrange their music by moving blocks around the timeline.
 
 **Current Timeline State:**
@@ -173,25 +200,18 @@ ${blocksContext}
 - For adjustSpeed tool, use the block ID (the tool will automatically handle finding the track)
 - For loop tool, use the block ID and specify how many times to repeat it (1-10 times)
 
-**Examples of what you can help with:**
-- "Move the drums to start at measure 8"
-- "Chop the main track into segments"
-- "Place the melody after the bass line"
-- "Speed up the bass line to make it more energetic"
-- "Slow down the drums to half speed"
-- "Make this block 2x faster"
-- "Loop the drum pattern 4 times"
-- "Repeat this melody 3 times"
-- "Create a loop of this bass line"
-- "Rearrange the composition to have a better flow"
-- "Break down this audio and arrange the pieces"
-
 Be creative with arrangements and provide musical insight along with the technical changes!`,
     });
 
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({
+      onError: (error) =>
+        error instanceof Error ? error.message : "Agent request failed",
+    });
   } catch (error) {
     console.error("Agent Chat API error:", error);
+    if (Array.isArray(body?.messages)) {
+      return localAgentResponse(body.messages, body.blocks || []);
+    }
     return new Response(
       JSON.stringify({
         error: "Internal server error",
