@@ -1,0 +1,58 @@
+frontend/app/api/tracks/route.ts
+  s_5cc031f405fef0::t_4fec9e0e83630d 1-5
+frontend/app/api/start_track_generation/route.ts
+  s_5cc031f405fef0::t_02f5b5afd36d47 1-43
+frontend/next.config.mjs
+  s_5cc031f405fef0::t_1a53cf951f080f 12-37,39
+frontend/lib/backendUrl.ts
+  s_5cc031f405fef0::t_194b3c4bb940e9 1
+frontend/app/api/tracks/[trackId]/download/route.ts
+  s_5cc031f405fef0::t_d02d112618e938 1-18
+frontend/app/api/get_generated_track/route.ts
+  s_5cc031f405fef0::t_6ab2489249238c 1-93
+frontend/app/api/tracks/[trackId]/file/route.ts
+  s_5cc031f405fef0::t_d44d4376c46545 1-30
+frontend/app/api/tracks/[trackId]/route.ts
+  s_5cc031f405fef0::t_35121017c69d18 1-5
+frontend/components/beat-maker.tsx
+  s_5cc031f405fef0::t_aeb87096ec067e 626-628
+  s_5cc031f405fef0::t_27761764bbba4e 1105
+  s_5cc031f405fef0::t_9d7024c149433d 13
+  s_5cc031f405fef0::t_89557d414e17a0 584-591
+  s_5cc031f405fef0::t_ab1e84e93dd0c7 37
+  s_5cc031f405fef0::t_4c814e7fe926fa 562-569
+  s_5cc031f405fef0::t_cd5a3cc6ec853f 515
+  s_5cc031f405fef0::t_3814de96a9d2a6 1502
+frontend/components/beat/Catalog.tsx
+  s_5cc031f405fef0::t_82f62a741de9f3 159,205
+  s_5cc031f405fef0::t_848e3e2bb4e006 22
+  s_5cc031f405fef0::t_dd1fe1b50df4c2 51
+  s_5cc031f405fef0::t_7a87f0cc7029ee 231
+frontend/lib/beatovenTracks.ts
+  s_5cc031f405fef0::t_de43cf4c45f87c 1-39
+frontend/components/beat/AiSidebar.tsx
+  s_5cc031f405fef0::t_64942dadcc5b5e 285
+  s_5cc031f405fef0::t_2c07b1fb685132 303
+  s_5cc031f405fef0::t_a439618581bb38 15-16
+  s_5cc031f405fef0::t_5ebad8a897c10f 476,480-482,485
+  s_5cc031f405fef0::t_85b0fe9577f9c8 1094-1096
+  s_5cc031f405fef0::t_5b48c7f2cd965d 352-363
+frontend/components/beat/BeatGenerationModal.tsx
+  s_5cc031f405fef0::t_cecab8068cc970 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09fa565f464c9fc85b16751f9b3311e5e29bde94",
+  "prompts": {},
+  "sessions": {
+    "s_5cc031f405fef0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "42eb54c7-4241-4bb0-bbc7-003fca2baa5f",
+        "model": "grok-4.6"
+      },
+      "human_author": "Fiona Cai <69484076+fiona-cai@users.noreply.github.com>"
+    }
+  }
+}
