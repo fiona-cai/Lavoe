@@ -17,7 +17,6 @@ import { MobileLandingPage } from "./MobileLandingPage";
 interface OnboardingFlowProps {
   open: boolean;
   onComplete: () => void;
-  onSignIn: () => void;
 }
 
 const onboardingSteps = [
@@ -44,7 +43,6 @@ const onboardingSteps = [
 export function OnboardingFlow({
   open,
   onComplete,
-  onSignIn,
 }: OnboardingFlowProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [hasAudio, setHasAudio] = useState(false);
@@ -56,7 +54,7 @@ export function OnboardingFlow({
 
   const handleNext = () => {
     if (isLastStep) {
-      onSignIn();
+      onComplete();
     } else {
       setCurrentStep(currentStep + 1);
       setHasAudio(false);
@@ -290,7 +288,7 @@ export function OnboardingFlow({
                 : "min-w-[100px] bg-[#141414] text-foreground border border-border hover:bg-[#1a1a1a] transition-all"
             }
           >
-            {isLastStep ? "Sign in" : "Next"}
+            {isLastStep ? "Get started" : "Next"}
           </Button>
         </div>
       </DialogContent>
